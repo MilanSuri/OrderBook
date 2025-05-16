@@ -77,7 +77,14 @@ public:
     std::map<double, PriceLevel, std::greater<>> bids;
     void addOrder(Order &order) {
         if (order.getSide() == Side::BUY) {
-
+            auto i = bids.find(order.getPrice());
+            if (i == bids.end()) {
+                PriceLevel newLevel(order.getPrice());
+                newLevel.addOrder(order);
+                bids.insert({order.getPrice(), std::move (newLevel)});
+            } else {
+                i->second.addOrder(order);
+            }
         }
     }
 };
