@@ -60,7 +60,7 @@ public:
         }
     }
 
-    [[nodiscard]] int getTotalQuantity() const { return totalQuantity; }
+    [[nodiscard]] double getTotalQuantity() const { return totalQuantity; }
 
     // Peek at the front order (FIFO)
     bool getFirstOrder(Order& order) const {
