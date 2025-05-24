@@ -51,12 +51,17 @@ public:
     void removeOrder(Order &order, Order &orderId) {
         if (orders.empty()) {
             std::cout << "No orders to remove" << std::endl;
+            return;
+        }
+
+        auto it = std::find_if(orders.begin(), orders.end(),
+            [orderId](const Order& o) { return o.getOrderId() == orderId; });
+
+        if (it != orders.end()) {
+            totalQuantity -= it->getQuantity();
+            orders.erase(it);
         } else {
-            auto it = std::find(orders.begin(), orders.end(), orderId);
-            if (it != orders.end()) {
-                orders.erase(it);
-                totalQuantity--;
-            }
+            std::cout << "Order not found" << std::endl;
         }
     }
 
