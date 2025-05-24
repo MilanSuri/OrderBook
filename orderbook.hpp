@@ -8,6 +8,9 @@
 #include <map>
 #include <unordered_map>
 #include <queue>
+#include <deque>
+#include <iostream>
+#include <algorithm>
 
 // Enumeration to represent order side (buy or sell)
 enum class Side {
