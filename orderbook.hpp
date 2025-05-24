@@ -39,7 +39,7 @@ public:
 
 class PriceLevel {
 public:
-    double price;;
+    double price;
     std::deque<Order> orders;
     double totalQuantity;
 
