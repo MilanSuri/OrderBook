@@ -48,7 +48,8 @@ public:
         totalQuantity++;
     }
 
-    void removeOrder(Order &order, Order &orderId) {
+    //  Remove by orderId, adjust totalQuantity accordingly
+    void removeOrder(int orderId) {
         if (orders.empty()) {
             std::cout << "No orders to remove" << std::endl;
             return;
