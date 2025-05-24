@@ -41,7 +41,7 @@ class PriceLevel {
 public:
     double price;;
     std::deque<Order> orders;
-    int totalQuantity;
+    double totalQuantity;
 
     // Constructor to initialize price and total quantity
     explicit PriceLevel(double p) : price(p), totalQuantity(0.0) {}
