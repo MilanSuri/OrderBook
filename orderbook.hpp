@@ -60,7 +60,7 @@ public:
     // Initialize with a price and zero total quantity
     explicit PriceLevel(double p) : price(p), totalQuantity(0.0) {}
 
-    // Add order and sum actual quantity
+    // Add an order to the queue and update total quantity
     void addOrder(const Order& order) {
         orders.push_back(order);
         totalQuantity += order.getQuantity();
