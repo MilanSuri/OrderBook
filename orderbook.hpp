@@ -53,9 +53,9 @@ public:
 // Represents a single price level in the order book
 class PriceLevel {
 public:
-    double price;
-    std::deque<Order> orders;
-    double totalQuantity;
+    double price;                      // Price associated with this level
+    std::deque<Order> orders;         // Queue of orders (FIFO)
+    double totalQuantity;             // Total quantity of all orders at this level
 
     // Constructor to initialize price and total quantity
     explicit PriceLevel(double p) : price(p), totalQuantity(0.0) {}
