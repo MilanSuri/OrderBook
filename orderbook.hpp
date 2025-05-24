@@ -138,6 +138,7 @@ public:
     void addOrder(const Order & order);
 };
 
+// Top-level order book that supports order matching and maintains order history
 class OrderBook {
 public:
     std::unordered_map<int , Order> orderHistory;
