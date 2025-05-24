@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <queue>
 
+// Enumeration to represent order side (buy or sell)
 enum class Side {
     BUY,
     SELL
