@@ -39,7 +39,6 @@ public:
     [[nodiscard]] double getPrice() const { return price; }
     [[nodiscard]] double getQuantity() const { return quantity; }
     Side getSide() { return side; }
-};
 
     // Reduce the order quantity by a given amount, ensuring non-negative result
     void reduceQuantity(double amount) {
@@ -116,7 +115,7 @@ public:
             if (i == bids.end()) {
                 PriceLevel newLevel(order.getPrice());
                 newLevel.addOrder(order);
-                bids.insert({order.getPrice(), std::move (newLevel)});
+                bids.insert({order.getPrice(), std::move(newLevel)});
             } else {
                 i->second.addOrder(order);
             }
@@ -236,4 +235,4 @@ public:
     }
 };
 
-#endif //ORDERBOOK_H
+#endif // ORDERBOOK_H
