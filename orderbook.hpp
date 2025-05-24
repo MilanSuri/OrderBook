@@ -18,6 +18,7 @@ enum class Side {
     SELL
 };
 
+// Class representing a single order
 class Order {
 private:
     int orderId;
