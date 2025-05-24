@@ -64,7 +64,7 @@ public:
 
     bool getFirstOrder(Order &order) {
         if (orders.empty()) {
-            std::cout << "No orders";
+            std::cout << "No orders" << std::endl;
             return false;
         }
         order = orders.front();
