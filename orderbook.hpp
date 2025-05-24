@@ -128,7 +128,7 @@ public:
             if (i == asks.end()) {
                 PriceLevel newLevel(order.getPrice());
                 newLevel.addOrder(order);
-                asks.insert({order.getPrice(), std::move (newLevel)});
+                asks.insert({order.getPrice(), std::move(newLevel)});
             } else {
                 i->second.addOrder(order);
             }
