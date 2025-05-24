@@ -87,7 +87,7 @@ public:
     // Retrieve the total quantity at this price level
     [[nodiscard]] double getTotalQuantity() const { return totalQuantity; }
 
-    // Peek at the front order (FIFO)
+    // Peek at the first order in the queue
     bool getFirstOrder(Order& order) const {
         if (orders.empty()) {
             std::cout << "No orders" << std::endl;
