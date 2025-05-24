@@ -84,6 +84,7 @@ public:
         }
     }
 
+    // Retrieve the total quantity at this price level
     [[nodiscard]] double getTotalQuantity() const { return totalQuantity; }
 
     // Peek at the front order (FIFO)
