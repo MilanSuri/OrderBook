@@ -91,8 +91,19 @@ public:
 
 class OrderBookSellSide {
 public:
-    std::map<double, PriceLevel, std::lower<double>> asks;
-
+    std::map<double, PriceLevel, std::less<>> asks;
+    void addAsk(Order &order) {
+        if (order.getSide() == Side::SELL) {
+            auto i = asks.find(order.getPrice());
+            if (i == asks.end()) {
+                PriceLevel newLevel(order.getPrice());
+                newLevel.addOrder(order);
+                asks.insert({order.getPrice(), std::move (newLevel)});
+            } else {
+                i->second.addOrder(order);
+            }
+        }
+    }
 };
 
 class OrderBook {
