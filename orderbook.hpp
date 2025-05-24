@@ -70,6 +70,11 @@ public:
         order = orders.front();
         return true;
     }
+
+    // Check if price level is empty
+    bool isEmpty() const {
+        return orders.empty();
+    }
 };
 
 class OrderBookBuySide {
