@@ -119,6 +119,8 @@ public:
     }
 };
 
+// Represents the sell side of the order book (asks)
+// Orders are sorted by price in ascending order (lowest first)
 class OrderBookSellSide {
 public:
     std::map<double, PriceLevel, std::less<>> asks;
