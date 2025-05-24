@@ -62,7 +62,8 @@ public:
 
     [[nodiscard]] int getTotalQuantity() const { return totalQuantity; }
 
-    bool getFirstOrder(Order &order) {
+    // Peek at the front order (FIFO)
+    bool getFirstOrder(Order& order) const {
         if (orders.empty()) {
             std::cout << "No orders" << std::endl;
             return false;
