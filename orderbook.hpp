@@ -135,6 +135,7 @@ public:
         }
     }
 
+    // This function can be defined elsewhere if needed
     void addOrder(const Order & order);
 };
 
