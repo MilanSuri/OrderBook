@@ -50,7 +50,7 @@ public:
     }
 };
 
-
+// Represents a single price level in the order book
 class PriceLevel {
 public:
     double price;
