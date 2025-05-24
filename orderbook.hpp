@@ -49,7 +49,7 @@ public:
     // Add order and sum actual quantity
     void addOrder(const Order& order) {
         orders.push_back(order);
-        totalQuantity++;
+        totalQuantity += order.getQuantity();
     }
 
     //  Remove by orderId, adjust totalQuantity accordingly
