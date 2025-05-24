@@ -96,7 +96,7 @@ public:
         return true;
     }
 
-    // Check if price level is empty
+    // Check if this price level contains any orders
     bool isEmpty() const {
         return orders.empty();
     }
