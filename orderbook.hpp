@@ -217,5 +217,12 @@ public:
                 }
             }
 
+            // If sell order is partially filled, add to sell side book
+            if (order.getQuantity() > 0) {
+                asks.addAsk(order);
+            }
+        }
+    }
+};
 
 #endif //ORDERBOOK_H
