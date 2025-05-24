@@ -43,7 +43,11 @@ public:
     std::deque<Order> orders;
     int totalQuantity;
 
-    void addOrder(Order &order) {
+    // Constructor to initialize price and total quantity
+    explicit PriceLevel(double p) : price(p), totalQuantity(0.0) {}
+
+    // Add order and sum actual quantity
+    void addOrder(const Order& order) {
         orders.push_back(order);
         totalQuantity++;
     }
