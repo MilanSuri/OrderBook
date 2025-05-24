@@ -105,6 +105,8 @@ public:
 class OrderBookBuySide {
 public:
     std::map<double, PriceLevel, std::greater<>> bids;
+
+    // Add a buy order to the corresponding price level
     void addOrder(Order &order) {
         if (order.getSide() == Side::BUY) {
             auto i = bids.find(order.getPrice());
