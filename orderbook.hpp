@@ -66,7 +66,7 @@ public:
         totalQuantity += order.getQuantity();
     }
 
-    //  Remove by orderId, adjust totalQuantity accordingly
+    // Remove an order by order ID and adjust the total quantity
     void removeOrder(int orderId) {
         if (orders.empty()) {
             std::cout << "No orders to remove" << std::endl;
