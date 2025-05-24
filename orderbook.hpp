@@ -122,6 +122,8 @@ public:
 class OrderBookSellSide {
 public:
     std::map<double, PriceLevel, std::less<>> asks;
+
+    // Add a sell order to the appropriate price level
     void addAsk(Order &order) {
         if (order.getSide() == Side::SELL) {
             auto i = asks.find(order.getPrice());
