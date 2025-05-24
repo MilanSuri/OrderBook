@@ -33,6 +33,8 @@ public:
         quantity = new_quantity;
         side = new_side;
     }
+
+    // Accessors (getters)
     [[nodiscard]] int getOrderId() const { return orderId; }
     [[nodiscard]] double getPrice() const { return price; }
     [[nodiscard]] double getQuantity() const { return quantity; }
