@@ -102,6 +102,8 @@ public:
     }
 };
 
+// Represents the buy side of the order book (bids)
+// Orders are sorted by price in descending order (highest first)
 class OrderBookBuySide {
 public:
     std::map<double, PriceLevel, std::greater<>> bids;
