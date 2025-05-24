@@ -141,7 +141,81 @@ public:
 class OrderBook {
 public:
     std::unordered_map<int , Order> orderHistory;
-};
+
+    // Add a new order and attempt to match it
+    void addOrder(Order &order, OrderBookSellSide &asks, OrderBookBuySide &bids) {
+        // Store the order in history regardless of matching outcome
+        orderHistory.insert({order.getOrderId(), order});
+
+        if (order.getSide() == Side::BUY) {
+            // Process a BUY order: attempt to match with the lowest available SELLs
+            auto it = asks.asks.begin();
+
+            while (it != asks.asks.end() && it->first <= order.getPrice() && order.getQuantity() > 0) {
+                PriceLevel& priceLevel = it->second;
+
+                // Match against existing sell orders at this price level (FIFO)
+                while (!priceLevel.orders.empty() && order.getQuantity() > 0) {
+                    Order &askOrder = priceLevel.orders.front();
+
+                    // Determine the matched quantity
+                    double tradeQuantity = std::min(order.getQuantity(), askOrder.getQuantity());
+
+                    // Apply the trade
+                    order.reduceQuantity(tradeQuantity);
+                    askOrder.reduceQuantity(tradeQuantity);
+                    priceLevel.totalQuantity -= tradeQuantity;
+
+                    // Remove fully filled sell order
+                    if (askOrder.getQuantity() == 0) {
+                        priceLevel.orders.pop_front();
+                    }
+                }
+
+                // Remove price level if no remaining orders
+                if (priceLevel.orders.empty()) {
+                    it = asks.asks.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+
+            // If buy order is partially filled, add to buy side book
+            if (order.getQuantity() > 0) {
+                bids.addOrder(order);
+            }
+        } else {
+            // Process a SELL order: attempt to match with the highest available BUYs
+            auto it = bids.bids.begin();
+
+            while (it != bids.bids.end() && it->first >= order.getPrice() && order.getQuantity() > 0) {
+                PriceLevel& priceLevel = it->second;
+
+                // Match against existing buy orders at this price level (FIFO)
+                while (!priceLevel.orders.empty() && order.getQuantity() > 0) {
+                    Order &bidOrder = priceLevel.orders.front();
+
+                    // Determine the matched quantity
+                    double tradeQuantity = std::min(order.getQuantity(), bidOrder.getQuantity());
+
+                    // Apply the trade
+                    order.reduceQuantity(tradeQuantity);
+                    bidOrder.reduceQuantity(tradeQuantity);
+                    priceLevel.totalQuantity -= tradeQuantity;
+
+                    // Remove fully filled buy order
+                    if (bidOrder.getQuantity() == 0) {
+                        priceLevel.orders.pop_front();
+                    }
+                }
+
+                // Remove price level if no remaining orders
+                if (priceLevel.orders.empty()) {
+                    it = bids.bids.erase(it);
+                } else {
+                    ++it;
+                }
+            }
 
 
 #endif //ORDERBOOK_H
