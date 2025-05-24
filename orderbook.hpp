@@ -57,7 +57,7 @@ public:
     std::deque<Order> orders;         // Queue of orders (FIFO)
     double totalQuantity;             // Total quantity of all orders at this level
 
-    // Constructor to initialize price and total quantity
+    // Initialize with a price and zero total quantity
     explicit PriceLevel(double p) : price(p), totalQuantity(0.0) {}
 
     // Add order and sum actual quantity
