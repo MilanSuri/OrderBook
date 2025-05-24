@@ -41,6 +41,14 @@ public:
     Side getSide() { return side; }
 };
 
+    // Reduce the order quantity by a given amount, ensuring non-negative result
+    void reduceQuantity(double amount) {
+        if (amount > 0) {
+            quantity -= amount;
+            if (quantity < 0) quantity = 0;
+        }
+    }
+};
 
 
 class PriceLevel {
