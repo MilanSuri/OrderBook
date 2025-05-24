@@ -120,6 +120,8 @@ public:
             }
         }
     }
+
+    void addOrder(const Order & order);
 };
 
 class OrderBook {
