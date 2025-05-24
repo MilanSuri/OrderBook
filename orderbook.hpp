@@ -26,8 +26,7 @@ private:
     double quantity;
     Side side;
 public:
-
-
+    // Constructor to initialize order fields
     Order(int new_orderId, double new_price, double new_quantity, Side new_side) {
         orderId = new_orderId;
         price = new_price;
