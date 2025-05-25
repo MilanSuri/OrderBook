@@ -209,6 +209,7 @@ public:
                     double tradeQuantity = std::min(order.getQuantity(), bidOrder.getQuantity());
 
                     // Apply the trade
+                    std::cout << "Trade executed: " << tradeQuantity << " @ " << askOrder.getPrice() << '\n';
                     order.reduceQuantity(tradeQuantity);
                     bidOrder.reduceQuantity(tradeQuantity);
                     priceLevel.totalQuantity -= tradeQuantity;
