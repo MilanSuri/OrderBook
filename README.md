@@ -38,3 +38,5 @@ A console-based order book simulator in C++ that models the core mechanics of bu
 - Automatic trade execution and quantity updates.
 - Maintains a history of all orders.
 - Supports adding, removing, and viewing orders.
+--
+Built by Milan Suri - May 24th, 2025
