@@ -88,6 +88,7 @@ int main() {
                     }
                     break;
                 }
+                break;
             } default: {
                 std::cout << "Invalid Choice\n";
                 std::cin.clear();
