@@ -2,6 +2,11 @@
 #include "orderbook.hpp"
 
 int main() {
+    int decision;
+    bool session = true;
+    int orderIdCounter = 1;
+
+    std::cout << "Welcome to the order book system \n";
 
     OrderBook orderBook;
     OrderBookBuySide buySide;
