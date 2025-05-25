@@ -172,6 +172,7 @@ public:
                     double tradeQuantity = std::min(order.getQuantity(), askOrder.getQuantity());
 
                     // Apply the trade
+                    std::cout << "Trade executed: " << tradeQuantity << " @ " << priceLevel.price << " (BUY matched with SELL)\n";
                     order.reduceQuantity(tradeQuantity);
                     askOrder.reduceQuantity(tradeQuantity);
                     priceLevel.totalQuantity -= tradeQuantity;
@@ -209,7 +210,7 @@ public:
                     double tradeQuantity = std::min(order.getQuantity(), bidOrder.getQuantity());
 
                     // Apply the trade
-                    std::cout << "Trade executed: " << tradeQuantity << " @ " << askOrder.getPrice() << '\n';
+                    std::cout << "Trade executed: " << tradeQuantity << " @ " << priceLevel.price << " (SELL matched with BUY)\n";
                     order.reduceQuantity(tradeQuantity);
                     bidOrder.reduceQuantity(tradeQuantity);
                     priceLevel.totalQuantity -= tradeQuantity;
