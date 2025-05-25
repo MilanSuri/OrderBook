@@ -51,12 +51,6 @@ This program simulates a simplified order book where users can place buy (bid) a
 
 ---
 
-## Usage
-
-Run the program and follow the on-screen prompts to add or remove buy/sell orders, view order books, and track executed trades.
-
----
-
 ## Author
 
 **Milan Suri**  
