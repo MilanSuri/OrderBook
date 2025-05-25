@@ -86,7 +86,6 @@ int main() {
                     for (const auto& order : level.orders) {
                         std::cout << "   ID: " << order.getOrderId() << " | Qty: " << order.getQuantity() << '\n';
                     }
-                    break;
                 }
                 break;
             } default: {
