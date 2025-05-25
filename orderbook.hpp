@@ -1,7 +1,3 @@
-//
-// Created by Milan Suri on 5/9/25.
-//
-
 #ifndef ORDERBOOK_H
 #define ORDERBOOK_H
 
