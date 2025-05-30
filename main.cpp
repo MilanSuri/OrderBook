@@ -12,6 +12,7 @@ OrderBookSellSide sellSide;
 int orderIdCounter = 1;
 
 
+
 enum class EventType {
     ADDBID,
     ADDASK,
@@ -66,22 +67,32 @@ EventType parseInput(const std::string& input) {
 }
 
 int main() {
-
-
     EventDispatcher dispatcher;
 
     // Register event handlers
     dispatcher.registerHandler(EventType::ADDBID, [](const Event&) {
+        std::cout << "Adding bid\n";
         double price, quantity;
         std::cout << "Enter the price of the bid: ";
         std::cin >> price;
+        if (std::cin.fail()) {
+            std::cin.clear(); // Clear error flag
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Discard input
+            std::cout << "Invalid price. Try again.\n";
+            return; // Exit the handler without adding the order
+            }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::cout << "Enter the quantity: ";
         std::cin >> quantity;
+         if (std::cin.fail()) {
+             std::cin.clear();
+             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+             std::cout << "Invalid quantity. Try again.\n";
+             return;
+    }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         Order order (orderIdCounter++, price, quantity, Side::BUY);
         orderBook.addOrder(order, sellSide, buySide);
-        std::cout << "Adding bid\n";
     });
 
     dispatcher.registerHandler(EventType::ADDASK, [](const Event&) {
@@ -89,9 +100,21 @@ int main() {
         double price, quantity;
         std::cout << "Enter the price of the ask: ";
         std::cin >> price;
+        if (std::cin.fail()) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid price. Try again.\n";
+            return;
+        }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::cout << "Enter the quantity: ";
         std::cin >> quantity;
+        if (std::cin.fail()) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid quantity. Try again.\n";
+            return;
+        }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         Order order (orderIdCounter++, price, quantity, Side::SELL);
         orderBook.addOrder(order, sellSide, buySide);
@@ -102,6 +125,12 @@ int main() {
         int orderId;
         std::cout << "Enter the order id: ";
         std::cin >> orderId;
+        if (std::cin.fail()) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid order id. Try again.\n";
+            return;
+        }
         for (auto & [price, level] : buySide.bids ) {
             level.removeOrder(orderId);
         }
@@ -112,6 +141,12 @@ int main() {
         int orderId;
               std::cout << "Enter the order id: ";
               std::cin >> orderId;
+        if (std::cin.fail()) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid order id. Try again.\n";
+            return;
+        }
               for (auto & [price, level] : sellSide.asks) {
                   level.removeOrder(orderId);
               }
@@ -171,4 +206,3 @@ int main() {
 
     return 0;
 }
-
