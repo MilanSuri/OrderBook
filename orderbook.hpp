@@ -3,7 +3,6 @@
 
 #include <map>
 #include <unordered_map>
-#include <queue>
 #include <deque>
 #include <iostream>
 #include <algorithm>
@@ -67,7 +66,6 @@ public:
             std::cout << "No orders to remove" << std::endl;
             return;
         }
-
         auto it = std::find_if(orders.begin(), orders.end(),
             [orderId](const Order& o) { return o.getOrderId() == orderId; });
 
@@ -139,14 +137,14 @@ public:
         }
     }
 
-    // This function can be defined elsewhere if needed
+    // Optional: declared but not defined here
     void addOrder(const Order & order);
 };
 
 // Top-level order book that supports order matching and maintains order history
 class OrderBook {
 public:
-    std::unordered_map<int , Order> orderHistory;
+    std::unordered_map<int , Order> orderHistory; // Track all orders by ID
 
     // Add a new order and attempt to match it
     void addOrder(Order &order, OrderBookSellSide &asks, OrderBookBuySide &bids) {
@@ -154,17 +152,17 @@ public:
         orderHistory.insert({order.getOrderId(), order});
 
         if (order.getSide() == Side::BUY) {
-            // Process a BUY order: attempt to match with the lowest available SELLs
+            // Match BUY order against SELL orders
             auto it = asks.asks.begin();
 
             while (it != asks.asks.end() && it->first <= order.getPrice() && order.getQuantity() > 0) {
                 PriceLevel& priceLevel = it->second;
 
-                // Match against existing sell orders at this price level (FIFO)
+                // Match against existing SELL orders at this price level (FIFO)
                 while (!priceLevel.orders.empty() && order.getQuantity() > 0) {
                     Order &askOrder = priceLevel.orders.front();
 
-                    // Determine the matched quantity
+                    // Determine how much can be traded
                     double tradeQuantity = std::min(order.getQuantity(), askOrder.getQuantity());
 
                     // Apply the trade
@@ -173,13 +171,13 @@ public:
                     askOrder.reduceQuantity(tradeQuantity);
                     priceLevel.totalQuantity -= tradeQuantity;
 
-                    // Remove fully filled sell order
+                    // Remove fully filled order
                     if (askOrder.getQuantity() == 0) {
                         priceLevel.orders.pop_front();
                     }
                 }
 
-                // Remove price level if no remaining orders
+                // Clean up empty price level
                 if (priceLevel.orders.empty()) {
                     it = asks.asks.erase(it);
                 } else {
@@ -187,22 +185,22 @@ public:
                 }
             }
 
-            // If buy order is partially filled, add to buy side book
+            // If unfilled quantity remains, add to BUY side book
             if (order.getQuantity() > 0) {
                 bids.addOrder(order);
             }
         } else {
-            // Process a SELL order: attempt to match with the highest available BUYs
+            // Match SELL order against BUY orders
             auto it = bids.bids.begin();
 
             while (it != bids.bids.end() && it->first >= order.getPrice() && order.getQuantity() > 0) {
                 PriceLevel& priceLevel = it->second;
 
-                // Match against existing buy orders at this price level (FIFO)
+                // Match against existing BUY orders at this price level (FIFO)
                 while (!priceLevel.orders.empty() && order.getQuantity() > 0) {
                     Order &bidOrder = priceLevel.orders.front();
 
-                    // Determine the matched quantity
+                    // Determine how much can be traded
                     double tradeQuantity = std::min(order.getQuantity(), bidOrder.getQuantity());
 
                     // Apply the trade
@@ -211,13 +209,13 @@ public:
                     bidOrder.reduceQuantity(tradeQuantity);
                     priceLevel.totalQuantity -= tradeQuantity;
 
-                    // Remove fully filled buy order
+                    // Remove fully filled order
                     if (bidOrder.getQuantity() == 0) {
                         priceLevel.orders.pop_front();
                     }
                 }
 
-                // Remove price level if no remaining orders
+                // Clean up empty price level
                 if (priceLevel.orders.empty()) {
                     it = bids.bids.erase(it);
                 } else {
@@ -225,11 +223,46 @@ public:
                 }
             }
 
-            // If sell order is partially filled, add to sell side book
+            // If unfilled quantity remains, add to SELL side book
             if (order.getQuantity() > 0) {
                 asks.addAsk(order);
             }
         }
+    }
+
+    // Remove an order from both order book and history by its ID
+    bool removeOrderById(int orderId, OrderBookBuySide& buySide, OrderBookSellSide& sellSide) {
+        const auto i = orderHistory.find(orderId);
+        if (i == orderHistory.end()) {
+            std::cout << "Order not found in history.\n";
+            return false;
+        }
+
+        Order order = i->second;
+        double price = order.getPrice();
+
+        // Remove from the correct side (BUY or SELL)
+        if (order.getSide() == Side::BUY) {
+            auto levelIt = buySide.bids.find(price);
+            if (levelIt != buySide.bids.end()) {
+                levelIt->second.removeOrder(orderId);
+                if (levelIt->second.isEmpty()) {
+                    buySide.bids.erase(levelIt);
+                }
+            }
+        } else {
+            auto levelIt = sellSide.asks.find(price);
+            if (levelIt != sellSide.asks.end()) {
+                levelIt->second.removeOrder(orderId);
+                if (levelIt->second.isEmpty()) {
+                    sellSide.asks.erase(levelIt);
+                }
+            }
+        }
+
+        // Remove from history
+        orderHistory.erase(i);
+        return true;
     }
 };
 
