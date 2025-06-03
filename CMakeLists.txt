@@ -4,4 +4,5 @@ project(OrderBook)
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(OrderBook main.cpp
-        OrderBook.hpp)
+        OrderBook.hpp
+        orderbook.cpp)
