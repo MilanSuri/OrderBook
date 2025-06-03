@@ -16,8 +16,7 @@ int orderIdCounter = 1;
 enum class EventType {
     ADDBID,
     ADDASK,
-    REMOVEBID,
-    REMOVEASK,
+    REMOVEORDER,
     ORDERHISTORY,
     DISPLAYORDERS,
     UNKNOWN,
@@ -58,12 +57,32 @@ EventType parseInput(const std::string& input) {
     std::string cmd = toLower(input);
     if (cmd == "add bid") return EventType::ADDBID;
     if (cmd == "add ask") return EventType::ADDASK;
-    if (cmd == "remove bid") return EventType::REMOVEBID;
-    if (cmd == "remove ask") return EventType::REMOVEASK;
+    if (cmd == "remove order") return EventType::REMOVEORDER;
     if (cmd == "order history") return EventType::ORDERHISTORY;
     if (cmd == "display orders") return EventType::DISPLAYORDERS;
     if (cmd == "quit") return EventType::QUIT;
     return EventType::UNKNOWN;
+}
+
+void removeHandler(const Event& event) {
+    std::cout << "Enter order ID to remove: ";
+    int orderId;
+    std::cin >> orderId;
+    if (std::cin.fail()) {
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        std::cout << "Invalid order ID. Try again.\n";
+        return;
+    }
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    bool removed = orderBook.removeOrderById(orderId, buySide, sellSide);
+
+    if (removed) {
+        std::cout << "Order " << orderId << " removed successfully.\n";
+    } else {
+        std::cout << "Failed to remove order " << orderId << ".\n";
+    }
 }
 
 int main() {
@@ -120,37 +139,7 @@ int main() {
         orderBook.addOrder(order, sellSide, buySide);
     });
 
-    dispatcher.registerHandler(EventType::REMOVEBID, [](const Event&) {
-        std::cout << "Removing bid\n";
-        int orderId;
-        std::cout << "Enter the order id: ";
-        std::cin >> orderId;
-        if (std::cin.fail()) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid order id. Try again.\n";
-            return;
-        }
-        for (auto & [price, level] : buySide.bids ) {
-            level.removeOrder(orderId);
-        }
-    });
-
-    dispatcher.registerHandler(EventType::REMOVEASK, [](const Event&) {
-      std::cout << "Removing ask\n";
-        int orderId;
-              std::cout << "Enter the order id: ";
-              std::cin >> orderId;
-        if (std::cin.fail()) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid order id. Try again.\n";
-            return;
-        }
-              for (auto & [price, level] : sellSide.asks) {
-                  level.removeOrder(orderId);
-              }
-  });
+    dispatcher.registerHandler(EventType::REMOVEORDER, removeHandler);
 
     dispatcher.registerHandler(EventType::ORDERHISTORY, [](const Event&) {
         std::cout << "Showing order history\n";
@@ -194,7 +183,7 @@ int main() {
     bool running = true;
 
     while (running) {
-        std::cout << "Enter command (add bid, add ask, remove bid, remove ask, order history, display orders, quit): ";
+        std::cout << "Enter command (add bid, add ask, remove order, order history, display orders, quit): ";
         std::getline(std::cin, input);
         EventType type = parseInput(input);
         Event event(type);
