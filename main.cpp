@@ -4,12 +4,15 @@
 #include <unordered_map>
 #include <algorithm>
 #include <limits>
+#include <thread>
+#include <mutex>
 #include <atomic> //atomic works - now lets try adding mutex/threads to adding/removing
 
 
 OrderBook orderBook;
 OrderBookBuySide buySide;
 OrderBookSellSide sellSide;
+std::mutex orderBookMutex;
 
 
 std::atomic<int> orderIdCounter(1);
@@ -93,28 +96,33 @@ int main() {
 
     // Register event handlers
     dispatcher.registerHandler(EventType::ADDBID, [](const Event&) {
-        std::cout << "Adding bid\n";
-        double price, quantity;
-        std::cout << "Enter the price of the bid: ";
-        std::cin >> price;
-        if (std::cin.fail()) {
-            std::cin.clear(); // Clear error flag
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Discard input
-            std::cout << "Invalid price. Try again.\n";
-            return; // Exit the handler without adding the order
-            }
+            double price, quantity;
+            std::cout << "Adding bid\n";
+            std::cout << "Enter the price of the bid: ";
+            std::cin >> price;
+            if (std::cin.fail()) {
+                std::cin.clear(); // Clear error flag
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Discard input
+                std::cout << "Invalid price. Try again.\n";
+                return; // Exit the handler without adding the order
+                }
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Enter the quantity: ";
+            std::cin >> quantity;
+             if (std::cin.fail()) {
+                 std::cin.clear();
+                 std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                 std::cout << "Invalid quantity. Try again.\n";
+                 return;
+        }
+
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Enter the quantity: ";
-        std::cin >> quantity;
-         if (std::cin.fail()) {
-             std::cin.clear();
-             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-             std::cout << "Invalid quantity. Try again.\n";
-             return;
-    }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        Order order (orderIdCounter.fetch_add(1), price, quantity, Side::BUY);
-        orderBook.addOrder(order, sellSide, buySide);
+        std::thread addBidThread([price, quantity]() {
+            std::lock_guard<std::mutex> lock(orderBookMutex);
+            Order order(orderIdCounter.fetch_add(1), price, quantity, Side::BUY);
+            orderBook.addOrder(order, sellSide, buySide);
+  });
+        addBidThread.detach();
     });
 
     dispatcher.registerHandler(EventType::ADDASK, [](const Event&) {
@@ -138,8 +146,12 @@ int main() {
             return;
         }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        Order order (orderIdCounter.fetch_add(1), price, quantity, Side::SELL);
-        orderBook.addOrder(order, sellSide, buySide);
+        std::thread addAskThread([price, quantity]() {
+            std::lock_guard<std::mutex> lock(orderBookMutex);
+            Order order (orderIdCounter.fetch_add(1), price, quantity, Side::SELL);
+            orderBook.addOrder(order, sellSide, buySide);
+        });
+        addAskThread.detach();
     });
 
     dispatcher.registerHandler(EventType::REMOVEORDER, removeHandler);
