@@ -82,6 +82,7 @@ void removeHandler(const Event& event) {
     }
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
+    std::lock_guard<std::mutex> lock(orderBookMutex);
     bool removed = orderBook.removeOrderById(orderId, buySide, sellSide);
 
     if (removed) {
@@ -122,7 +123,7 @@ int main() {
             Order order(orderIdCounter.fetch_add(1), price, quantity, Side::BUY);
             orderBook.addOrder(order, sellSide, buySide);
   });
-        addBidThread.detach();
+        addBidThread.join();
     });
 
     dispatcher.registerHandler(EventType::ADDASK, [](const Event&) {
@@ -151,7 +152,7 @@ int main() {
             Order order (orderIdCounter.fetch_add(1), price, quantity, Side::SELL);
             orderBook.addOrder(order, sellSide, buySide);
         });
-        addAskThread.detach();
+        addAskThread.join();
     });
 
     dispatcher.registerHandler(EventType::REMOVEORDER, removeHandler);
