@@ -4,12 +4,15 @@
 #include <unordered_map>
 #include <algorithm>
 #include <limits>
+#include <atomic> //atomic works - now lets try adding mutex/threads to adding/removing
 
 
 OrderBook orderBook;
 OrderBookBuySide buySide;
 OrderBookSellSide sellSide;
-int orderIdCounter = 1;
+
+
+std::atomic<int> orderIdCounter(1);
 
 
 
@@ -110,7 +113,7 @@ int main() {
              return;
     }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        Order order (orderIdCounter++, price, quantity, Side::BUY);
+        Order order (orderIdCounter.fetch_add(1), price, quantity, Side::BUY);
         orderBook.addOrder(order, sellSide, buySide);
     });
 
@@ -135,7 +138,7 @@ int main() {
             return;
         }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        Order order (orderIdCounter++, price, quantity, Side::SELL);
+        Order order (orderIdCounter.fetch_add(1), price, quantity, Side::SELL);
         orderBook.addOrder(order, sellSide, buySide);
     });
 
