@@ -11,6 +11,7 @@
 #include <queue>
 #include <vector>
 #include <chrono>
+#include <sqlite3.h>
 
 OrderBook orderBook;
 OrderBookBuySide buySide;
@@ -133,24 +134,27 @@ private:
     bool stop_;
 };
 
+
 int main() {
-    ThreadPool threadPool(4);  // Create a pool with 4 threads
+    orderBook.initializeDB();
+    orderBook.loadsOrdersFromDB(sellSide, buySide);
+
+    ThreadPool threadPool(4);
     EventDispatcher dispatcher;
 
-    // Register event handlers
+    // Register ADDBID handler
     dispatcher.registerHandler(EventType::ADDBID, [&threadPool](const Event&) {
         double price, quantity;
-        std::cout << "Adding bid\n";
-        std::cout << "Enter the price of the bid: ";
+        std::cout << "Adding bid\nEnter price: ";
         std::cin >> price;
         if (std::cin.fail()) {
-            std::cin.clear(); // Clear error flag
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Discard input
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             std::cout << "Invalid price. Try again.\n";
-            return; // Exit the handler without adding the order
+            return;
         }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Enter the quantity: ";
+        std::cout << "Enter quantity: ";
         std::cin >> quantity;
         if (std::cin.fail()) {
             std::cin.clear();
@@ -158,20 +162,20 @@ int main() {
             std::cout << "Invalid quantity. Try again.\n";
             return;
         }
-
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
         threadPool.enqueue([price, quantity]() {
-            std::lock_guard<std::mutex> lock(orderBookMutex);  // Protect shared resources
+            std::lock_guard<std::mutex> lock(orderBookMutex);
             Order order(orderIdCounter.fetch_add(1), price, quantity, Side::BUY);
-            orderBook.addOrder(order, sellSide, buySide);  // Add the order to the order book
+            orderBook.addOrder(order, sellSide, buySide);
             std::cout << "Bid added: Price = " << price << ", Quantity = " << quantity << "\n";
         });
     });
 
+    // Register ADDASK handler
     dispatcher.registerHandler(EventType::ADDASK, [&threadPool](const Event&) {
         double price, quantity;
-        std::cout << "Adding ask\n";
-        std::cout << "Enter the price of the ask: ";
+        std::cout << "Adding ask\nEnter price: ";
         std::cin >> price;
         if (std::cin.fail()) {
             std::cin.clear();
@@ -180,7 +184,7 @@ int main() {
             return;
         }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Enter the quantity: ";
+        std::cout << "Enter quantity: ";
         std::cin >> quantity;
         if (std::cin.fail()) {
             std::cin.clear();
@@ -188,16 +192,17 @@ int main() {
             std::cout << "Invalid quantity. Try again.\n";
             return;
         }
-
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
         threadPool.enqueue([price, quantity]() {
             std::lock_guard<std::mutex> lock(orderBookMutex);
             Order order(orderIdCounter.fetch_add(1), price, quantity, Side::SELL);
             orderBook.addOrder(order, sellSide, buySide);
-            std::cout << "Ask added: Price = " << price << ", Quantity = " << quantity << std::endl;
+            std::cout << "Ask added: Price = " << price << ", Quantity = " << quantity << "\n";
         });
     });
 
+    // Register REMOVEORDER handler
     dispatcher.registerHandler(EventType::REMOVEORDER, [&threadPool](const Event&) {
         std::cout << "Enter order ID to remove: ";
         int orderId;
@@ -211,7 +216,7 @@ int main() {
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
         threadPool.enqueue([orderId]() {
-            std::lock_guard<std::mutex> lock(orderBookMutex);  // Protect shared resources
+            std::lock_guard<std::mutex> lock(orderBookMutex);
             bool removed = orderBook.removeOrderById(orderId, buySide, sellSide);
             if (removed) {
                 std::cout << "Order " << orderId << " removed successfully.\n";
@@ -221,26 +226,22 @@ int main() {
         });
     });
 
+    // Register ORDERHISTORY handler
     dispatcher.registerHandler(EventType::ORDERHISTORY, [](const Event&) {
-        std::cout << "Showing order history\n";
-        std::cout << "Order History:\n";
-        for (const auto& [id, order] : orderBook.orderHistory) {
-            std::cout << "ID: " << order.getOrderId()
-                      << " | Price: " << order.getPrice()
-                      << " | Qty: " << order.getQuantity()
-                      << " | Side: " << (order.getSide() == Side::BUY ? "BUY" : "SELL") << '\n';
-        }
+        std::lock_guard<std::mutex> lock(orderBookMutex);
+        orderBook.displayOrders();  // Note: DB must be accessible here
     });
 
+    // Register DISPLAYORDERS handler
     dispatcher.registerHandler(EventType::DISPLAYORDERS, [](const Event&) {
-        std::cout << "Displaying orders\n";
+        std::lock_guard<std::mutex> lock(orderBookMutex);
         std::cout << "Active Buy Orders:\n";
         for (const auto& [price, level] : buySide.bids) {
-            std::cout << "Price: " << price << " | Total Qty: " << level.totalQuantity << '\n';
+            std::cout << "Price: " << price << " | Total Qty: " << level.totalQuantity << "\n";
         }
         std::cout << "Active Sell Orders:\n";
         for (const auto& [price, level] : sellSide.asks) {
-            std::cout << "Price: " << price << " | Total Qty: " << level.totalQuantity << '\n';
+            std::cout << "Price: " << price << " | Total Qty: " << level.totalQuantity << "\n";
         }
     });
 

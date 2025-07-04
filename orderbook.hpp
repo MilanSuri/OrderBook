@@ -7,8 +7,8 @@
 #include <iostream>
 #include <algorithm>
 #include <chrono>
-#include <thread>
-
+#include <sqlite3.h>
+#include <iomanip>
 
 // Enumeration to represent order side (buy or sell)
 enum class Side {
@@ -146,13 +146,36 @@ public:
 
 // Top-level order book that supports order matching and maintains order history
 class OrderBook {
+
 public:
-    std::unordered_map<int , Order> orderHistory; // Track all orders by ID
+    sqlite3 *DB;
+
+void initializeDB() {
+    std::string sql = "CREATE TABLE ORDERS("
+                      "ORDER_ID INT PRIMARY KEY     NOT NULL, "
+                      "PRICE           REAL     NOT NULL, "
+                      "QUANTITY        REAL     NOT NULL, "
+                      "SIDE            INT       NOT NULL);";
+    int exit = 0;
+    exit = sqlite3_open("orderhistory.db", &DB);
+    char* messaggeError;
+    exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
+}
 
     // Add a new order and attempt to match it
     void addOrder(Order &order, OrderBookSellSide &asks, OrderBookBuySide &bids) {
         // Store the order in history regardless of matching outcome
-        orderHistory.insert({order.getOrderId(), order});
+        std::string sql("INSERT INTO ORDERS (ORDER_ID, PRICE, QUANTITY, SIDE) VALUES (?, ?, ?, ?);");
+        sqlite3_stmt *statement;
+        sqlite3_prepare_v2(DB, sql.c_str(), -1, &statement, nullptr);
+
+        sqlite3_bind_int(statement, 1, order.getOrderId());
+        sqlite3_bind_double(statement, 2, order.getPrice());
+        sqlite3_bind_double(statement, 3, order.getQuantity());
+        sqlite3_bind_int(statement, 4, static_cast<int>(order.getSide()));
+        sqlite3_step(statement);
+        sqlite3_finalize(statement);
+
 
         if (order.getSide() == Side::BUY) {
             // Match BUY order against SELL orders
@@ -233,40 +256,108 @@ public:
         }
     }
 
+    void loadsOrdersFromDB(OrderBookSellSide& asks, OrderBookBuySide& bids) {
+    std::string sql = "SELECT * FROM ORDERS";
+    sqlite3_stmt* statement;
+
+    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &statement, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(DB) << std::endl;
+        return;
+    }
+
+    while (sqlite3_step(statement) == SQLITE_ROW) {
+        int orderId = sqlite3_column_int(statement, 0);
+        double price = sqlite3_column_double(statement, 1);
+        double quantity = sqlite3_column_double(statement, 2);
+        int sideInt = sqlite3_column_int(statement, 3);
+
+        Side side = (sideInt == 0) ? Side::BUY : Side::SELL;
+
+        Order order(orderId, price, quantity, side);
+
+        if (side == Side::BUY) {
+            bids.addOrder(order);
+        } else {
+            asks.addAsk(order);
+        }
+    }
+
+    sqlite3_finalize(statement);
+}
+
     // Remove an order from both order book and history by its ID
     bool removeOrderById(int orderId, OrderBookBuySide& buySide, OrderBookSellSide& sellSide) {
-        const auto i = orderHistory.find(orderId);
-        if (i == orderHistory.end()) {
-            std::cout << "Order not found in history.\n";
+    std::string sql = "DELETE FROM ORDERS WHERE ORDER_ID = ?;";
+    sqlite3_stmt *statement;
+
+    if (sqlite3_prepare_v2(DB, sql.c_str(), -1, &statement, nullptr) != SQLITE_OK) {
+        std::cerr << "Failed to prepare delete statement: " << sqlite3_errmsg(DB) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_int(statement, 1, orderId);
+
+    int result = sqlite3_step(statement);
+    sqlite3_finalize(statement);
+
+    if (result == SQLITE_DONE) {
+        // Check if any row was actually deleted
+        if (sqlite3_changes(DB) > 0) {
+            return true;
+        } else {
+            std::cout << "No order found with ID " << orderId << ". Nothing to remove.\n";
             return false;
         }
-
-        Order order = i->second;
-        double price = order.getPrice();
-
-        // Remove from the correct side (BUY or SELL)
-        if (order.getSide() == Side::BUY) {
-            auto levelIt = buySide.bids.find(price);
-            if (levelIt != buySide.bids.end()) {
-                levelIt->second.removeOrder(orderId);
-                if (levelIt->second.isEmpty()) {
-                    buySide.bids.erase(levelIt);
-                }
-            }
-        } else {
-            auto levelIt = sellSide.asks.find(price);
-            if (levelIt != sellSide.asks.end()) {
-                levelIt->second.removeOrder(orderId);
-                if (levelIt->second.isEmpty()) {
-                    sellSide.asks.erase(levelIt);
-                }
-            }
-        }
-
-        // Remove from history
-        orderHistory.erase(i);
-        return true;
+    } else {
+        std::cerr << "Error deleting order: " << sqlite3_errmsg(DB) << std::endl;
+        return false;
     }
+}
+
+    void displayOrders() const {
+    const char* sql = "SELECT ORDER_ID, PRICE, QUANTITY, SIDE FROM ORDERS;";
+    sqlite3_stmt* statement;
+
+    int rc = sqlite3_prepare_v2(DB, sql, -1, &statement, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(DB) << std::endl;
+        return;
+    }
+
+    // Print headers
+    std::cout << std::left
+              << std::setw(10) << "ORDER_ID"
+              << std::setw(12) << "PRICE"
+              << std::setw(12) << "QUANTITY"
+              << std::setw(8) << "SIDE" << std::endl;
+
+    std::cout << std::string(42, '-') << std::endl; // separator line
+
+    bool hasRows = false;
+
+    // Iterate through rows
+    while (sqlite3_step(statement) == SQLITE_ROW) {
+        hasRows = true;
+        int orderId = sqlite3_column_int(statement, 0);
+        double price = sqlite3_column_double(statement, 1);
+        double quantity = sqlite3_column_double(statement, 2);
+        int sideInt = sqlite3_column_int(statement, 3);
+        std::string sideStr = (sideInt == 0) ? "BUY" : "SELL";
+
+        std::cout << std::left
+                  << std::setw(10) << orderId
+                  << std::setw(12) << price
+                  << std::setw(12) << quantity
+                  << std::setw(8) << sideStr << std::endl;
+    }
+
+    sqlite3_finalize(statement);
+
+    if (!hasRows) {
+        std::cout << "No orders stored yet.\n";
+    }
+}
 };
 
 #endif // ORDERBOOK_H
