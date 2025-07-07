@@ -26,6 +26,7 @@ enum class EventType {
     REMOVEORDER,
     ORDERHISTORY,
     DISPLAYORDERS,
+    SHOWBOOK,
     UNKNOWN,
     QUIT
 };
@@ -65,6 +66,7 @@ EventType parseInput(const std::string& input) {
     if (cmd == "add ask") return EventType::ADDASK;
     if (cmd == "remove order") return EventType::REMOVEORDER;
     if (cmd == "order history") return EventType::ORDERHISTORY;
+    if (cmd == "show book") return EventType::SHOWBOOK;
     if (cmd == "display orders") return EventType::DISPLAYORDERS;
     if (cmd == "quit") return EventType::QUIT;
     return EventType::UNKNOWN;
@@ -134,6 +136,23 @@ private:
     bool stop_;
 };
 
+double parseDoubleWithCommas(const std::string& input) {
+    std::string cleaned;
+    cleaned.reserve(input.size());
+
+    // Keep digits, '.', and '-'; skip commas
+    std::copy_if(input.begin(), input.end(), std::back_inserter(cleaned),
+                 [](char c) { return (std::isdigit(c) || c == '.' || c == '-'); });
+
+    try {
+        return std::stod(cleaned);
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing number '" << input << "': " << e.what() << std::endl;
+        return std::numeric_limits<double>::quiet_NaN();  // signal invalid
+    }
+}
+
+
 
 int main() {
     orderBook.initializeDB();
@@ -144,63 +163,79 @@ int main() {
 
     // Register ADDBID handler
     dispatcher.registerHandler(EventType::ADDBID, [&threadPool](const Event&) {
-        double price, quantity;
-        std::cout << "Adding bid\nEnter price: ";
-        std::cin >> price;
-        if (std::cin.fail()) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid price. Try again.\n";
-            return;
-        }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Enter quantity: ";
-        std::cin >> quantity;
-        if (std::cin.fail()) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid quantity. Try again.\n";
-            return;
-        }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::string ticker;
 
-        threadPool.enqueue([price, quantity]() {
-            std::lock_guard<std::mutex> lock(orderBookMutex);
-            Order order(orderIdCounter.fetch_add(1), price, quantity, Side::BUY);
-            orderBook.addOrder(order, sellSide, buySide);
-            std::cout << "Bid added: Price = " << price << ", Quantity = " << quantity << "\n";
-        });
+    std::cout << "Adding bid\nEnter ticker: ";
+    std::getline(std::cin, ticker);
+    if (ticker.empty()) {
+        std::cout << "Invalid ticker. Try again.\n";
+        return;
+    }
+
+    std::string priceStr;
+    std::cout << "Enter price: ";
+    std::getline(std::cin, priceStr);
+    double price = parseDoubleWithCommas(priceStr);
+    if (std::isnan(price)) {
+        std::cout << "Invalid price. Try again.\n";
+        return;
+    }
+
+    std::string quantityStr;
+    std::cout << "Enter quantity: ";
+    std::getline(std::cin, quantityStr);
+    double quantity = parseDoubleWithCommas(quantityStr);
+    if (std::isnan(quantity)) {
+        std::cout << "Invalid quantity. Try again.\n";
+        return;
+    }
+
+    threadPool.enqueue([price, quantity, ticker]() {
+        std::lock_guard<std::mutex> lock(orderBookMutex);
+        Order order(orderIdCounter.fetch_add(1), price, quantity, Side::BUY, ticker);
+        orderBook.addOrder(order);
+        std::cout << "Bid added: Ticker = "<< ticker <<", Price = " << price << ", Quantity = " << quantity << "\n";
     });
+});
+
 
     // Register ADDASK handler
     dispatcher.registerHandler(EventType::ADDASK, [&threadPool](const Event&) {
-        double price, quantity;
-        std::cout << "Adding ask\nEnter price: ";
-        std::cin >> price;
-        if (std::cin.fail()) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid price. Try again.\n";
-            return;
-        }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Enter quantity: ";
-        std::cin >> quantity;
-        if (std::cin.fail()) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid quantity. Try again.\n";
-            return;
-        }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::string ticker;
 
-        threadPool.enqueue([price, quantity]() {
-            std::lock_guard<std::mutex> lock(orderBookMutex);
-            Order order(orderIdCounter.fetch_add(1), price, quantity, Side::SELL);
-            orderBook.addOrder(order, sellSide, buySide);
-            std::cout << "Ask added: Price = " << price << ", Quantity = " << quantity << "\n";
-        });
+    std::cout << "Adding ask\nEnter ticker: ";
+    std::getline(std::cin, ticker);
+    if (ticker.empty()) {
+        std::cout << "Invalid ticker. Try again.\n";
+        return;
+    }
+
+    std::string priceStr;
+    std::cout << "Enter price: ";
+    std::getline(std::cin, priceStr);
+    double price = parseDoubleWithCommas(priceStr);
+    if (std::isnan(price)) {
+        std::cout << "Invalid price. Try again.\n";
+        return;
+    }
+
+    std::string quantityStr;
+    std::cout << "Enter quantity: ";
+    std::getline(std::cin, quantityStr);
+    double quantity = parseDoubleWithCommas(quantityStr);
+    if (std::isnan(quantity)) {
+        std::cout << "Invalid quantity. Try again.\n";
+        return;
+    }
+
+    threadPool.enqueue([price, quantity, ticker]() {
+        std::lock_guard<std::mutex> lock(orderBookMutex);
+        Order order(orderIdCounter.fetch_add(1), price, quantity, Side::SELL, ticker);
+        orderBook.addOrder(order);
+        std::cout << "Ask added: Ticker = "<< ticker <<", Price = " << price << ", Quantity = " << quantity << "\n";
     });
+});
+
 
     // Register REMOVEORDER handler
     dispatcher.registerHandler(EventType::REMOVEORDER, [&threadPool](const Event&) {
@@ -232,6 +267,21 @@ int main() {
         orderBook.displayOrders();  // Note: DB must be accessible here
     });
 
+    dispatcher.registerHandler(EventType::SHOWBOOK, [](const Event&) {
+        std::string ticker;
+        std::cout << "Enter ticker: \n";
+        std::cin >> ticker;
+
+        if (std::cin.fail()) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid ticker. Try again.\n";
+        }
+
+        std::lock_guard<std::mutex> lock(orderBookMutex);
+        orderBook.displayOrderBookForTickers(ticker);
+    });
+
     // Register DISPLAYORDERS handler
     dispatcher.registerHandler(EventType::DISPLAYORDERS, [](const Event&) {
         std::lock_guard<std::mutex> lock(orderBookMutex);
@@ -247,7 +297,7 @@ int main() {
 
     // Main event loop
     while (true) {
-        std::cout << "Enter command (add bid, add ask, remove order, order history, display orders, quit): ";
+        std::cout << "Enter command (add bid, add ask, remove order, show book, order history, display orders, quit): ";
         std::string input;
         std::getline(std::cin, input);
         EventType eventType = parseInput(input);

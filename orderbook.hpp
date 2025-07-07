@@ -9,6 +9,7 @@
 #include <chrono>
 #include <sqlite3.h>
 #include <iomanip>
+#include <string>
 
 // Enumeration to represent order side (buy or sell)
 enum class Side {
@@ -23,13 +24,15 @@ private:
     double price;
     double quantity;
     Side side;
+    std::string ticker;
 public:
     // Constructor to initialize order fields
-    Order(int new_orderId, double new_price, double new_quantity, Side new_side) {
+    Order(int new_orderId, double new_price, double new_quantity, Side new_side, std::string new_ticker) {
         orderId = new_orderId;
         price = new_price;
         quantity = new_quantity;
         side = new_side;
+        ticker = new_ticker;
     }
 
     // Accessors (getters)
@@ -37,6 +40,7 @@ public:
     [[nodiscard]] double getPrice() const { return price; }
     [[nodiscard]] double getQuantity() const { return quantity; }
     Side getSide() const { return side; }
+    [[nodiscard]] std::string getTicker() const { return ticker; }
 
     // Reduce the order quantity by a given amount, ensuring non-negative result
     void reduceQuantity(double amount) {
@@ -148,36 +152,61 @@ public:
 class OrderBook {
 
 public:
+
+    std::unordered_map<std::string, OrderBookSellSide> sellSides;
+    std::unordered_map<std::string, OrderBookBuySide> buySides;
+
     sqlite3 *DB;
 
-void initializeDB() {
-    std::string sql = "CREATE TABLE ORDERS("
-                      "ORDER_ID INT PRIMARY KEY     NOT NULL, "
-                      "PRICE           REAL     NOT NULL, "
-                      "QUANTITY        REAL     NOT NULL, "
-                      "SIDE            INT       NOT NULL);";
-    int exit = 0;
-    exit = sqlite3_open("orderhistory.db", &DB);
-    char* messaggeError;
-    exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
-}
+    void initializeDB() {
+        int exit = sqlite3_open("orderhistory.db", &DB);
+
+        // Drop the existing table (for dev/testing only)
+        const char* dropSql = "DROP TABLE IF EXISTS ORDERS;";
+        char* messageError;
+        exit = sqlite3_exec(DB, dropSql, NULL, 0, &messageError);
+        if (exit != SQLITE_OK) {
+            std::cerr << "Error dropping table: " << messageError << std::endl;
+            sqlite3_free(messageError);
+        }
+
+        // Now create the new table
+        std::string sql = "CREATE TABLE ORDERS("
+                          "ORDER_ID INT PRIMARY KEY NOT NULL,"
+                          "TICKER TEXT NOT NULL,"
+                          "PRICE REAL NOT NULL,"
+                          "QUANTITY REAL NOT NULL,"
+                          "SIDE INT NOT NULL);";
+
+        exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messageError);
+        if (exit != SQLITE_OK) {
+            std::cerr << "Error creating table: " << messageError << std::endl;
+            sqlite3_free(messageError);
+        }
+    }
+
 
     // Add a new order and attempt to match it
-    void addOrder(Order &order, OrderBookSellSide &asks, OrderBookBuySide &bids) {
+    void addOrder(Order &order) {
+
+        std::string ticker = order.getTicker();
+        OrderBookSellSide& asks = sellSides[ticker];
+        OrderBookBuySide& bids = buySides[ticker];
+
         // Store the order in history regardless of matching outcome
-        std::string sql("INSERT INTO ORDERS (ORDER_ID, PRICE, QUANTITY, SIDE) VALUES (?, ?, ?, ?);");
+        std::string sql("INSERT INTO ORDERS (ORDER_ID, TICKER, PRICE, QUANTITY, SIDE) VALUES (?, ?, ?, ?, ?);");
         sqlite3_stmt *statement;
         sqlite3_prepare_v2(DB, sql.c_str(), -1, &statement, nullptr);
 
         sqlite3_bind_int(statement, 1, order.getOrderId());
-        sqlite3_bind_double(statement, 2, order.getPrice());
-        sqlite3_bind_double(statement, 3, order.getQuantity());
-        sqlite3_bind_int(statement, 4, static_cast<int>(order.getSide()));
+        sqlite3_bind_text(statement, 2, order.getTicker().c_str(), -1, nullptr);
+        sqlite3_bind_double(statement, 3, order.getPrice());
+        sqlite3_bind_double(statement, 4, order.getQuantity());
+        sqlite3_bind_int(statement, 5, static_cast<int>(order.getSide()));
         sqlite3_step(statement);
         sqlite3_finalize(statement);
 
-
-        if (order.getSide() == Side::BUY) {
+      if (order.getSide() == Side::BUY) {
             // Match BUY order against SELL orders
             auto it = asks.asks.begin();
 
@@ -268,13 +297,15 @@ void initializeDB() {
 
     while (sqlite3_step(statement) == SQLITE_ROW) {
         int orderId = sqlite3_column_int(statement, 0);
-        double price = sqlite3_column_double(statement, 1);
-        double quantity = sqlite3_column_double(statement, 2);
-        int sideInt = sqlite3_column_int(statement, 3);
+        const unsigned char* raw = sqlite3_column_text(statement, 1);
+        std::string ticker = raw ? reinterpret_cast<const char*>(raw) : "";
+        double price = sqlite3_column_double(statement, 2);
+        double quantity = sqlite3_column_double(statement, 3);
+        int sideInt = sqlite3_column_int(statement, 4);
 
         Side side = (sideInt == 0) ? Side::BUY : Side::SELL;
 
-        Order order(orderId, price, quantity, side);
+        Order order(orderId, price, quantity, side, ticker);
 
         if (side == Side::BUY) {
             bids.addOrder(order);
@@ -315,8 +346,30 @@ void initializeDB() {
     }
 }
 
+    void displayOrderBookForTickers(const std::string& ticker) const {
+    std::cout << "Bids: \n";
+    if (buySides.find(ticker) != buySides.end()) {
+        const auto&bids = buySides.at(ticker);
+        for (const auto& [price, level] : bids.bids) {
+            std::cout << "Price: " << price << " | Total Qty: " << level.getTotalQuantity() << "\n";
+        }
+    } else {
+        std::cout << "No bids found.\n";
+    }
+
+    std::cout << "Asks: \n";
+    if (sellSides.find(ticker) != sellSides.end()) {
+        const auto& asks = sellSides.at(ticker);
+        for (const auto& [price, level] : asks.asks) {
+            std::cout << "Price: " << price << " | Total Qty: " << level.getTotalQuantity() << "\n";
+        }
+    } else {
+        std::cout << "No sell sides found.\n";
+    }
+}
+
     void displayOrders() const {
-    const char* sql = "SELECT ORDER_ID, PRICE, QUANTITY, SIDE FROM ORDERS;";
+    const char* sql = "SELECT ORDER_ID, TICKER, PRICE, QUANTITY, SIDE FROM ORDERS;";
     sqlite3_stmt* statement;
 
     int rc = sqlite3_prepare_v2(DB, sql, -1, &statement, nullptr);
@@ -328,25 +381,28 @@ void initializeDB() {
     // Print headers
     std::cout << std::left
               << std::setw(10) << "ORDER_ID"
+              << std::setw(12) << "TICKER"
               << std::setw(12) << "PRICE"
               << std::setw(12) << "QUANTITY"
               << std::setw(8) << "SIDE" << std::endl;
 
-    std::cout << std::string(42, '-') << std::endl; // separator line
+    std::cout << std::string(54, '-') << std::endl;
 
     bool hasRows = false;
 
-    // Iterate through rows
     while (sqlite3_step(statement) == SQLITE_ROW) {
         hasRows = true;
         int orderId = sqlite3_column_int(statement, 0);
-        double price = sqlite3_column_double(statement, 1);
-        double quantity = sqlite3_column_double(statement, 2);
-        int sideInt = sqlite3_column_int(statement, 3);
+        const unsigned char* rawTicker = sqlite3_column_text(statement, 1);
+        std::string ticker = rawTicker ? reinterpret_cast<const char*>(rawTicker) : "";
+        double price = sqlite3_column_double(statement, 2);
+        double quantity = sqlite3_column_double(statement, 3);
+        int sideInt = sqlite3_column_int(statement, 4);
         std::string sideStr = (sideInt == 0) ? "BUY" : "SELL";
 
         std::cout << std::left
                   << std::setw(10) << orderId
+                  << std::setw(12) << ticker
                   << std::setw(12) << price
                   << std::setw(12) << quantity
                   << std::setw(8) << sideStr << std::endl;
