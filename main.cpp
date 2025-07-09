@@ -12,6 +12,9 @@
 #include <vector>
 #include <chrono>
 #include <sqlite3.h>
+#include <curl/curl.h>
+#include "json.hpp"  // from https://github.com/nlohmann/json
+using json = nlohmann::json;
 
 OrderBook orderBook;
 OrderBookBuySide buySide;
@@ -19,6 +22,57 @@ OrderBookSellSide sellSide;
 std::mutex orderBookMutex;
 
 std::atomic<int> orderIdCounter(1);
+
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {
+    size_t totalSize = size * nmemb;
+    userp->append((char*)contents, totalSize);
+    return totalSize;
+}
+
+bool validateTicker(const std::string& ticker, const std::string& apiKey) {
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Failed to init curl\n";
+        return false;
+    }
+
+    std::string readBuffer;
+    // Build URL for exact ticker search with Polygon API
+    std::string url = "https://api.polygon.io/v3/reference/tickers?ticker=" + ticker +
+                      "&market=stocks&active=true&apiKey=" + apiKey;
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+    CURLcode res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        std::cerr << "Curl request failed: " << curl_easy_strerror(res) << "\n";
+        return false;
+    }
+
+    try {
+        auto responseJson = json::parse(readBuffer);
+
+        // Polygon returns results in "results" array
+        if (responseJson.contains("results") && responseJson["results"].is_array()) {
+            for (const auto& item : responseJson["results"]) {
+                if (item.contains("ticker") && item["ticker"].get<std::string>() == ticker) {
+                    // Optional: check if "active" is true to be sure
+                    if (item.contains("active") && item["active"].get<bool>() == true) {
+                        return true;  // Valid active ticker found
+                    }
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "JSON parsing error: " << e.what() << "\n";
+    }
+
+    return false;
+}
 
 enum class EventType {
     ADDBID,
@@ -167,6 +221,17 @@ int main() {
 
     std::cout << "Adding bid\nEnter ticker: ";
     std::getline(std::cin, ticker);
+
+        std::string apiKey = "YOUR_API_KEY_HERE";
+
+
+
+    if (validateTicker(ticker, apiKey)) {
+        std::cout << "Ticker '" << ticker << "' is valid and active.\n";
+    } else {
+    std::cout << "Ticker '" << ticker << "' is invalid or inactive.\n";
+    return;
+    }
     if (ticker.empty()) {
         std::cout << "Invalid ticker. Try again.\n";
         return;
@@ -201,23 +266,32 @@ int main() {
 
     // Register ADDASK handler
     dispatcher.registerHandler(EventType::ADDASK, [&threadPool](const Event&) {
-    std::string ticker;
+        std::string ticker;
+        std::string apiKey = "YOUR_API_KEY_HERE";
 
-    std::cout << "Adding ask\nEnter ticker: ";
-    std::getline(std::cin, ticker);
-    if (ticker.empty()) {
-        std::cout << "Invalid ticker. Try again.\n";
+        std::cout << "Adding ask\nEnter ticker: ";
+        std::getline(std::cin, ticker);
+
+        if (validateTicker(ticker, apiKey)) {
+        std::cout << "Ticker '" << ticker << "' is valid and active.\n";
+    } else {
+        std::cout << "Ticker '" << ticker << "' is invalid or inactive.\n";
         return;
     }
 
-    std::string priceStr;
-    std::cout << "Enter price: ";
-    std::getline(std::cin, priceStr);
-    double price = parseDoubleWithCommas(priceStr);
-    if (std::isnan(price)) {
-        std::cout << "Invalid price. Try again.\n";
-        return;
-    }
+        if (ticker.empty()) {
+            std::cout << "Invalid ticker. Try again.\n";
+            return;
+        }
+
+        std::string priceStr;
+        std::cout << "Enter price: ";
+        std::getline(std::cin, priceStr);
+        double price = parseDoubleWithCommas(priceStr);
+        if (std::isnan(price)) {
+            std::cout << "Invalid price. Try again.\n";
+            return;
+        }
 
     std::string quantityStr;
     std::cout << "Enter quantity: ";
@@ -268,9 +342,17 @@ int main() {
     });
 
     dispatcher.registerHandler(EventType::SHOWBOOK, [](const Event&) {
+        std::string apiKey = "YOUR_API_KEY_HERE";
         std::string ticker;
+
         std::cout << "Enter ticker: \n";
         std::cin >> ticker;
+        if (validateTicker(ticker, apiKey)) {
+        std::cout << "Ticker '" << ticker << "' is valid and active.\n";
+    } else {
+        std::cout << "Ticker '" << ticker << "' is invalid or inactive.\n";
+    }
+
 
         if (std::cin.fail()) {
             std::cin.clear();
