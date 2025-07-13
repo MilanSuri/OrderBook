@@ -79,8 +79,6 @@ enum class EventType {
     ADDASK,
     REMOVEORDER,
     ORDERHISTORY,
-    DISPLAYORDERS,
-    SHOWBOOK,
     UNKNOWN,
     QUIT
 };
@@ -120,8 +118,6 @@ EventType parseInput(const std::string& input) {
     if (cmd == "add ask") return EventType::ADDASK;
     if (cmd == "remove order") return EventType::REMOVEORDER;
     if (cmd == "order history") return EventType::ORDERHISTORY;
-    if (cmd == "show book") return EventType::SHOWBOOK;
-    if (cmd == "display orders") return EventType::DISPLAYORDERS;
     if (cmd == "quit") return EventType::QUIT;
     return EventType::UNKNOWN;
 }
@@ -222,7 +218,7 @@ int main() {
     std::cout << "Adding bid\nEnter ticker: ";
     std::getline(std::cin, ticker);
 
-        std::string apiKey = "YOUR_API_KEY_HERE";
+        std::string apiKey = "INPUT_YOUR_API_KEY";
 
 
 
@@ -267,7 +263,7 @@ int main() {
     // Register ADDASK handler
     dispatcher.registerHandler(EventType::ADDASK, [&threadPool](const Event&) {
         std::string ticker;
-        std::string apiKey = "YOUR_API_KEY_HERE";
+        std::string apiKey = "INPUT_YOUR_APIKEY";
 
         std::cout << "Adding ask\nEnter ticker: ";
         std::getline(std::cin, ticker);
@@ -341,45 +337,11 @@ int main() {
         orderBook.displayOrders();  // Note: DB must be accessible here
     });
 
-    dispatcher.registerHandler(EventType::SHOWBOOK, [](const Event&) {
-        std::string apiKey = "YOUR_API_KEY_HERE";
-        std::string ticker;
 
-        std::cout << "Enter ticker: \n";
-        std::cin >> ticker;
-        if (validateTicker(ticker, apiKey)) {
-        std::cout << "Ticker '" << ticker << "' is valid and active.\n";
-    } else {
-        std::cout << "Ticker '" << ticker << "' is invalid or inactive.\n";
-    }
-
-
-        if (std::cin.fail()) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid ticker. Try again.\n";
-        }
-
-        std::lock_guard<std::mutex> lock(orderBookMutex);
-        orderBook.displayOrderBookForTickers(ticker);
-    });
-
-    // Register DISPLAYORDERS handler
-    dispatcher.registerHandler(EventType::DISPLAYORDERS, [](const Event&) {
-        std::lock_guard<std::mutex> lock(orderBookMutex);
-        std::cout << "Active Buy Orders:\n";
-        for (const auto& [price, level] : buySide.bids) {
-            std::cout << "Price: " << price << " | Total Qty: " << level.totalQuantity << "\n";
-        }
-        std::cout << "Active Sell Orders:\n";
-        for (const auto& [price, level] : sellSide.asks) {
-            std::cout << "Price: " << price << " | Total Qty: " << level.totalQuantity << "\n";
-        }
-    });
 
     // Main event loop
     while (true) {
-        std::cout << "Enter command (add bid, add ask, remove order, show book, order history, display orders, quit): ";
+        std::cout << "Enter command (add bid, add ask, remove order, order history, quit): ";
         std::string input;
         std::getline(std::cin, input);
         EventType eventType = parseInput(input);

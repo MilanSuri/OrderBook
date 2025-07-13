@@ -161,29 +161,22 @@ public:
     void initializeDB() {
         int exit = sqlite3_open("orderhistory.db", &DB);
 
-        // Drop the existing table (for dev/testing only)
-        const char* dropSql = "DROP TABLE IF EXISTS ORDERS;";
-        char* messageError;
-        exit = sqlite3_exec(DB, dropSql, NULL, 0, &messageError);
-        if (exit != SQLITE_OK) {
-            std::cerr << "Error dropping table: " << messageError << std::endl;
-            sqlite3_free(messageError);
-        }
-
-        // Now create the new table
-        std::string sql = "CREATE TABLE ORDERS("
+        // Create the table only if it doesn't already exist
+        std::string sql = "CREATE TABLE IF NOT EXISTS ORDERS("
                           "ORDER_ID INT PRIMARY KEY NOT NULL,"
                           "TICKER TEXT NOT NULL,"
                           "PRICE REAL NOT NULL,"
                           "QUANTITY REAL NOT NULL,"
                           "SIDE INT NOT NULL);";
 
+        char* messageError;
         exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messageError);
         if (exit != SQLITE_OK) {
             std::cerr << "Error creating table: " << messageError << std::endl;
             sqlite3_free(messageError);
         }
     }
+
 
 
     // Add a new order and attempt to match it
@@ -345,29 +338,6 @@ public:
         return false;
     }
 }
-
-    void displayOrderBookForTickers(const std::string& ticker) const {
-    std::cout << "Bids: \n";
-    if (buySides.find(ticker) != buySides.end()) {
-        const auto&bids = buySides.at(ticker);
-        for (const auto& [price, level] : bids.bids) {
-            std::cout << "Price: " << price << " | Total Qty: " << level.getTotalQuantity() << "\n";
-        }
-    } else {
-        std::cout << "No bids found.\n";
-    }
-
-    std::cout << "Asks: \n";
-    if (sellSides.find(ticker) != sellSides.end()) {
-        const auto& asks = sellSides.at(ticker);
-        for (const auto& [price, level] : asks.asks) {
-            std::cout << "Price: " << price << " | Total Qty: " << level.getTotalQuantity() << "\n";
-        }
-    } else {
-        std::cout << "No sell sides found.\n";
-    }
-}
-
     void displayOrders() const {
     const char* sql = "SELECT ORDER_ID, TICKER, PRICE, QUANTITY, SIDE FROM ORDERS;";
     sqlite3_stmt* statement;
