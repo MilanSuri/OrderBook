@@ -278,40 +278,40 @@ public:
         }
     }
 
-    void loadsOrdersFromDB(OrderBookSellSide& asks, OrderBookBuySide& bids) {
-    std::string sql = "SELECT * FROM ORDERS";
-    sqlite3_stmt* statement;
+    void loadsOrdersFromDB() {
+        std::string sql = "SELECT * FROM ORDERS";
+        sqlite3_stmt* statement;
 
-    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &statement, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(DB) << std::endl;
-        return;
-    }
-
-    while (sqlite3_step(statement) == SQLITE_ROW) {
-        int orderId = sqlite3_column_int(statement, 0);
-        const unsigned char* raw = sqlite3_column_text(statement, 1);
-        std::string ticker = raw ? reinterpret_cast<const char*>(raw) : "";
-        double price = sqlite3_column_double(statement, 2);
-        double quantity = sqlite3_column_double(statement, 3);
-        int sideInt = sqlite3_column_int(statement, 4);
-
-        Side side = (sideInt == 0) ? Side::BUY : Side::SELL;
-
-        Order order(orderId, price, quantity, side, ticker);
-
-        if (side == Side::BUY) {
-            bids.addOrder(order);
-        } else {
-            asks.addAsk(order);
+        int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &statement, nullptr);
+        if (rc != SQLITE_OK) {
+            std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(DB) << std::endl;
+            return;
         }
+
+        while (sqlite3_step(statement) == SQLITE_ROW) {
+            int orderId = sqlite3_column_int(statement, 0);
+            const unsigned char* raw = sqlite3_column_text(statement, 1);
+            std::string ticker = raw ? reinterpret_cast<const char*>(raw) : "";
+            double price = sqlite3_column_double(statement, 2);
+            double quantity = sqlite3_column_double(statement, 3);
+            int sideInt = sqlite3_column_int(statement, 4);
+            Side side = (sideInt == 0) ? Side::BUY : Side::SELL;
+
+            Order order(orderId, price, quantity, side, ticker);
+
+            if (side == Side::BUY) {
+                buySides[ticker].addOrder(order);
+            } else {
+                sellSides[ticker].addAsk(order);
+            }
+        }
+
+        sqlite3_finalize(statement);
     }
 
-    sqlite3_finalize(statement);
-}
 
     // Remove an order from both order book and history by its ID
-    bool removeOrderById(int orderId, OrderBookBuySide& buySide, OrderBookSellSide& sellSide) {
+    bool removeOrderById(int orderId) {
     std::string sql = "DELETE FROM ORDERS WHERE ORDER_ID = ?;";
     sqlite3_stmt *statement;
 

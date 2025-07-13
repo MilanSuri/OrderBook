@@ -17,8 +17,6 @@
 using json = nlohmann::json;
 
 OrderBook orderBook;
-OrderBookBuySide buySide;
-OrderBookSellSide sellSide;
 std::mutex orderBookMutex;
 
 std::atomic<int> orderIdCounter(1);
@@ -206,7 +204,7 @@ double parseDoubleWithCommas(const std::string& input) {
 
 int main() {
     orderBook.initializeDB();
-    orderBook.loadsOrdersFromDB(sellSide, buySide);
+    orderBook.loadsOrdersFromDB();
 
     ThreadPool threadPool(4);
     EventDispatcher dispatcher;
@@ -218,7 +216,7 @@ int main() {
     std::cout << "Adding bid\nEnter ticker: ";
     std::getline(std::cin, ticker);
 
-        std::string apiKey = "INPUT_YOUR_API_KEY";
+        std::string apiKey = "API_KEY_HERE";
 
 
 
@@ -263,7 +261,7 @@ int main() {
     // Register ADDASK handler
     dispatcher.registerHandler(EventType::ADDASK, [&threadPool](const Event&) {
         std::string ticker;
-        std::string apiKey = "INPUT_YOUR_APIKEY";
+        std::string apiKey = "API_KEY_HERE";
 
         std::cout << "Adding ask\nEnter ticker: ";
         std::getline(std::cin, ticker);
@@ -322,7 +320,7 @@ int main() {
 
         threadPool.enqueue([orderId]() {
             std::lock_guard<std::mutex> lock(orderBookMutex);
-            bool removed = orderBook.removeOrderById(orderId, buySide, sellSide);
+            bool removed = orderBook.removeOrderById(orderId);
             if (removed) {
                 std::cout << "Order " << orderId << " removed successfully.\n";
             } else {
