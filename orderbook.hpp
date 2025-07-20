@@ -384,6 +384,54 @@ public:
         std::cout << "No orders stored yet.\n";
     }
 }
+
+    void displayActiveTickers(const std::string& user_ticker) const {
+        std::cout << "\nActive Orders for Ticker: " << user_ticker << "\n";
+        std::cout << std::string(60, '-') << "\n";
+        std::cout << std::left
+                  << std::setw(10) << "ORDER_ID"
+                  << std::setw(12) << "PRICE"
+                  << std::setw(12) << "QUANTITY"
+                  << std::setw(10) << "SIDE" << "\n";
+        std::cout << std::string(60, '-') << "\n";
+
+        bool foundOrders = false;
+
+        // Display BUY side orders
+        auto buyIt = buySides.find(user_ticker);
+        if (buyIt != buySides.end()) {
+            for (const auto& [price, level] : buyIt->second.bids) {
+                for (const Order& order : level.orders) {
+                    std::cout << std::left
+                              << std::setw(10) << order.getOrderId()
+                              << std::setw(12) << order.getPrice()
+                              << std::setw(12) << order.getQuantity()
+                              << std::setw(10) << "BUY" << "\n";
+                    foundOrders = true;
+                }
+            }
+        }
+
+        // Display SELL side orders
+        auto sellIt = sellSides.find(user_ticker);
+        if (sellIt != sellSides.end()) {
+            for (const auto& [price, level] : sellIt->second.asks) {
+                for (const Order& order : level.orders) {
+                    std::cout << std::left
+                              << std::setw(10) << order.getOrderId()
+                              << std::setw(12) << order.getPrice()
+                              << std::setw(12) << order.getQuantity()
+                              << std::setw(10) << "SELL" << "\n";
+                    foundOrders = true;
+                }
+            }
+        }
+
+        if (!foundOrders) {
+            std::cout << "No active orders found for ticker " << user_ticker << ".\n";
+        };
+    }
 };
+
 
 #endif // ORDERBOOK_H

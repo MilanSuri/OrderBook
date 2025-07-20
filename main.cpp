@@ -14,6 +14,7 @@
 #include <sqlite3.h>
 #include <curl/curl.h>
 #include "json.hpp"  // from https://github.com/nlohmann/json
+#include <ctime>
 using json = nlohmann::json;
 
 OrderBook orderBook;
@@ -72,11 +73,54 @@ bool validateTicker(const std::string& ticker, const std::string& apiKey) {
     return false;
 }
 
+bool getTickerClosingPrice(std::string &ticker, std::string &alphaVantageKey) {
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Failed to init curl\n";
+    }
+    std::string readBuffer2;
+    std::string closingPriceURL = "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol="+ ticker + "&interval=5min&apikey=" + alphaVantageKey;
+
+    curl_easy_setopt(curl, CURLOPT_URL, closingPriceURL.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer2);
+
+    CURLcode res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        std::cerr << "Curl request failed: " << curl_easy_strerror(res) << "\n";
+        return false;
+    }
+
+    try {
+        auto responseJson = json::parse(readBuffer2);
+
+        if (responseJson.contains("Time Series (5min)")) {
+            auto timeSeries = responseJson["Time Series (5min)"];
+
+            auto mostRecentDate = timeSeries.begin();  // <-- timeSeries declared here
+            if (mostRecentDate != timeSeries.end()) {
+                std::string date = mostRecentDate.key();
+                std::string closingPrice = mostRecentDate.value()["4. close"];
+                std::cout << "Closing Price on " << date << ": " << closingPrice << std::endl;
+                return true;
+            }
+        } else {
+            std::cerr << "Error: 'Time Series (5min)' not found in response.\n";
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing JSON response: " << e.what() << std::endl;
+    }
+    return false;
+}
+
 enum class EventType {
     ADDBID,
     ADDASK,
     REMOVEORDER,
     ORDERHISTORY,
+    SHOWACTIVEORDERS,
     UNKNOWN,
     QUIT
 };
@@ -116,6 +160,7 @@ EventType parseInput(const std::string& input) {
     if (cmd == "add ask") return EventType::ADDASK;
     if (cmd == "remove order") return EventType::REMOVEORDER;
     if (cmd == "order history") return EventType::ORDERHISTORY;
+    if (cmd == "show active orders") return EventType::SHOWACTIVEORDERS;
     if (cmd == "quit") return EventType::QUIT;
     return EventType::UNKNOWN;
 }
@@ -200,8 +245,6 @@ double parseDoubleWithCommas(const std::string& input) {
     }
 }
 
-
-
 int main() {
     orderBook.initializeDB();
     orderBook.loadsOrdersFromDB();
@@ -212,11 +255,10 @@ int main() {
     // Register ADDBID handler
     dispatcher.registerHandler(EventType::ADDBID, [&threadPool](const Event&) {
     std::string ticker;
-
     std::cout << "Adding bid\nEnter ticker: ";
     std::getline(std::cin, ticker);
-
         std::string apiKey = "API_KEY_HERE";
+        std::string alphaVantageKey = "ENTER_YOUR_API_KEY_HERE";
 
 
 
@@ -230,6 +272,8 @@ int main() {
         std::cout << "Invalid ticker. Try again.\n";
         return;
     }
+
+        getTickerClosingPrice(ticker, apiKey);
 
     std::string priceStr;
     std::cout << "Enter price: ";
@@ -262,6 +306,7 @@ int main() {
     dispatcher.registerHandler(EventType::ADDASK, [&threadPool](const Event&) {
         std::string ticker;
         std::string apiKey = "API_KEY_HERE";
+        std::string alphaVantageKey = "ENTER_YOUR_API_KEY_HERE";
 
         std::cout << "Adding ask\nEnter ticker: ";
         std::getline(std::cin, ticker);
@@ -277,6 +322,7 @@ int main() {
             std::cout << "Invalid ticker. Try again.\n";
             return;
         }
+        getTickerClosingPrice(ticker, apiKey);
 
         std::string priceStr;
         std::cout << "Enter price: ";
@@ -335,11 +381,35 @@ int main() {
         orderBook.displayOrders();  // Note: DB must be accessible here
     });
 
+    dispatcher.registerHandler(EventType::SHOWACTIVEORDERS, [](const Event&) {
+        std::lock_guard<std::mutex> lock(orderBookMutex);
+        std::string apiKey = "API_KEY_HERE";
+        std::string ticker;
+        std::cout << "Enter ticker: ";
+        std::getline(std::cin, ticker);
+
+        if (std::cin.fail()) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid ticker. Try again.\n";
+            return;
+        }
+
+        if (validateTicker(ticker, apiKey)) {
+       std::cout << "Ticker '" << ticker << "' is valid and active.\n";
+   } else {
+       std::cout << "Ticker '" << ticker << "' is invalid or inactive.\n";
+       return;
+   }
+
+        orderBook.displayActiveTickers(ticker);
+    });
+
 
 
     // Main event loop
     while (true) {
-        std::cout << "Enter command (add bid, add ask, remove order, order history, quit): ";
+        std::cout << "Enter command (add bid, add ask, remove order, order history, show active orders, quit): ";
         std::string input;
         std::getline(std::cin, input);
         EventType eventType = parseInput(input);
