@@ -318,6 +318,7 @@ int main() {
         return;
     }
 
+
         if (ticker.empty()) {
             std::cout << "Invalid ticker. Try again.\n";
             return;
