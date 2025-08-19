@@ -16,7 +16,7 @@ This is a basic implementation of an order book system using C++. It supports th
   - Commands are processed based on events, providing flexibility to extend the system with new events in the future.
  
 - **API-Verification**
-  -Verifies stcok tickers with an API to ensure they are real tickers.
+  - Verifies stock tickers with an API to ensure they are real tickers.
   
 - **Order History Storage**
-  -Adds new orders to an sqlite database.
+  - Adds new orders to an sqlite database.
